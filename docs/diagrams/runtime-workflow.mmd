@@ -1,0 +1,78 @@
+%%{init: {"theme": "base", "sequence": {"actorMargin": 70, "messageMargin": 46, "boxMargin": 12, "noteMargin": 12, "mirrorActors": false, "wrap": true, "width": 220, "useMaxWidth": false}, "themeVariables": {
+  "fontFamily": "Helvetica Neue, Arial, sans-serif", "fontSize": "16px",
+  "actorBkg": "#f3ebd9", "actorBorder": "#cdbf9f", "actorTextColor": "#15201b", "actorLineColor": "#1c5443",
+  "signalColor": "#f3ebd9", "signalTextColor": "#f3ebd9",
+  "labelBoxBkgColor": "#c9a24b", "labelBoxBorderColor": "#9f7c2c", "labelTextColor": "#15201b",
+  "loopTextColor": "#f3ebd9", "activationBkgColor": "#175041", "activationBorderColor": "#c9a24b",
+  "noteBkgColor": "#175041", "noteBorderColor": "#c9a24b", "noteTextColor": "#f3ebd9",
+  "sequenceNumberColor": "#15201b"
+}}}%%
+sequenceDiagram
+  autonumber
+  participant A as Host (browser A)
+  participant B as Guest (browser B)
+  participant W as Worker
+  participant DO as RoomServer (partyserver · Durable Object)
+  participant E as Engine (pure rules)
+  participant AI as Claude via AI Gateway
+  participant DB as D1
+
+  rect rgb(8, 42, 33)
+    Note over A,DB: Create and join
+    A->>W: POST /api/rooms {settings}
+    W->>DO: init(code, seed)
+    W-->>A: {code, url} → go to /r/CODE
+    A->>W: GET /r/CODE → single-page app (Vite build)
+    A->>DO: WebSocket /ws/CODE · hello {id, secret, name} (Zod-validated)
+    DO-->>A: snapshot (lobby, you are host)
+    A-->>B: share the room link
+    B->>DO: hello {id, secret, name}
+    DO-->>A: snapshot (2 players)
+    DO-->>B: snapshot
+    A->>DO: settings · addBot · list publicly (host only)
+    DO->>E: updateSettings / addPlayer(bot)
+    A->>DO: start
+    DO->>E: startGame → haul 1 · bots decide
+  end
+
+  loop 8 hauls · cargo 120 → 480 plus drifting carry-over
+    DO-->>A: snapshot: choosing (deadline)
+    DO-->>B: snapshot: choosing
+    opt Ask the Broker (once per haul, private)
+      B->>DO: broker
+      DO->>E: engine: reads + sampled recommendation (per player seed)
+      DO->>AI: rewrite briefing · JSON schema output (≤ 9 s)
+      AI-->>DO: prose only · recommendation never changes · timeout → heuristic
+      DO-->>B: advice (only B receives it)
+    end
+    A->>DO: choose COLLECT or STEAL
+    DO-->>B: snapshot: A locked in (choice hidden)
+    alt everyone locks in
+      B->>DO: choose
+    else timer expires
+      DO->>DO: alarm → undecided crew COLLECT (flagged)
+    end
+    DO->>E: resolveRound → outcome · deltas · carry-over
+    DO-->>A: snapshot: reveal (calls go live, manifest)
+    DO-->>B: snapshot: reveal
+    alt host continues
+      A->>DO: next
+    else reveal timer
+      DO->>DO: alarm → advance
+    end
+  end
+
+  rect rgb(8, 42, 33)
+    Note over A,DB: Game over and rematch
+    DO->>E: advance → finished · winners (ties: fewer steals) · series +1
+    DO->>DB: record game · player rows · stats (async)
+    DO-->>A: final manifest + template mission log
+    DO-->>B: final manifest + template mission log
+    DO->>AI: mission log (async)
+    AI-->>DO: text → mission log updated for everyone
+    A->>DO: rematch vote
+    B->>DO: rematch vote (all humans in → go)
+    DO->>E: resetForRematch · seat spectators · startGame (game 2)
+  end
+
+  Note over A,DO: Any time: reload or reconnect → hello with the same {id, secret} reclaims the seat and the pending secret choice

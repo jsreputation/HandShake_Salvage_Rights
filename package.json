@@ -1,0 +1,32 @@
+{
+  "name": "salvage-rights",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Salvage Rights — an AI-assisted Collect-or-Steal game for 2–6 players on Next.js + Cloudflare Workers.",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tests/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:unit": "npm run test -w @salvage-rights/engine && npm run test -w @salvage-rights/protocol && npm run test -w @salvage-rights/worker",
+    "build:web": "npm run build -w @salvage-rights/web",
+    "build": "npm run build:web",
+    "dev:web": "npm run dev -w @salvage-rights/web",
+    "dev:worker": "npm run dev -w @salvage-rights/worker",
+    "dev": "npm run build:web && npm run dev:worker",
+    "test:integration": "npm run test -w @salvage-rights/integration-tests",
+    "test:e2e": "npm run test:e2e -w @salvage-rights/integration-tests",
+    "check": "npm run typecheck && npm run test:unit && npm run build:web && npm run test:integration && npm run test:e2e",
+    "deploy": "npm run build:web && npm run deploy -w @salvage-rights/worker"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

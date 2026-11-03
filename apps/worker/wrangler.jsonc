@@ -1,0 +1,68 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "salvage-rights",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // The Vite build is served from the same Worker as a single-page app: /api/* and /ws/* hit the
+  // Worker first, every other path (including /r/:code room links) gets index.html.
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/ws/*"],
+    "not_found_handling": "single-page-application"
+  },
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "RoomServer" },
+      { "name": "DIRECTORY", "class_name": "DirectoryServer" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomServer", "DirectoryServer"] }],
+
+  // D1 keeps finished games, player stats and the leaderboard. Create it once with
+  // `wrangler d1 create salvage-rights`, paste the id below, then `wrangler d1 migrations apply salvage-rights --remote`.
+  "d1_databases": [{ "binding": "DB", "database_name": "salvage-rights", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "drizzle" }],
+
+  // The Fixer briefing and the after-action report are written by a language model.
+  //   AI_PROVIDER=anthropic   Claude via the Messages API (structured JSON output). Set the key with
+  //                           `wrangler secret put ANTHROPIC_API_KEY`. Optional ANTHROPIC_BASE_URL routes
+  //                           through Cloudflare AI Gateway (caching, rate limits, logs):
+  //                           https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway>/anthropic
+  //   AI_PROVIDER=workers-ai  Cloudflare Workers AI through the binding below (no key needed).
+  //   AI_PROVIDER=mock|none   Canned answers / heuristics only.
+  // Whatever the provider, the recommendation itself always comes from the engine; the model only
+  // writes the prose, and every failure or timeout falls back to the deterministic briefing.
+  "ai": { "binding": "AI" },
+  "vars": {
+    "AI_PROVIDER": "anthropic",
+    "AI_MODEL": "claude-haiku-5-5",
+    "AI_TIMEOUT_MS": "9000",
+    "ROOM_TTL_HOURS": "24"
+  },
+
+  "observability": { "enabled": true },
+
+  "env": {
+    // `wrangler dev --env local`: identical, but without the (remote-only) AI binding so
+    // local development and the integration tests never need Cloudflare credentials.
+    "local": {
+      "assets": {
+        "directory": "../web/dist",
+        "binding": "ASSETS",
+        "run_worker_first": ["/api/*", "/ws/*"],
+        "not_found_handling": "single-page-application"
+      },
+      "durable_objects": {
+        "bindings": [
+          { "name": "ROOMS", "class_name": "RoomServer" },
+          { "name": "DIRECTORY", "class_name": "DirectoryServer" }
+        ]
+      },
+      "d1_databases": [{ "binding": "DB", "database_name": "salvage-rights", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "drizzle" }],
+      "vars": { "AI_PROVIDER": "mock", "AI_MODEL": "", "AI_TIMEOUT_MS": "9000", "ROOM_TTL_HOURS": "24" }
+    }
+  }
+}

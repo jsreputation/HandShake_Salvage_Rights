@@ -1,0 +1,42 @@
+%%{init: {"theme": "base", "flowchart": {"curve": "basis", "nodeSpacing": 30, "rankSpacing": 50, "padding": 12}, "themeVariables": {
+  "fontFamily": "Helvetica Neue, Arial, sans-serif", "fontSize": "15px",
+  "primaryColor": "#f3ebd9", "primaryTextColor": "#15201b", "primaryBorderColor": "#cdbf9f",
+  "lineColor": "#c9a24b", "clusterBkg": "#082a21", "clusterBorder": "#1c5443", "titleColor": "#f3ebd9",
+  "edgeLabelBackground": "#0e3b2e"
+}}}%%
+flowchart LR
+  classDef paper fill:#f3ebd9,stroke:#cdbf9f,color:#15201b
+  classDef felt fill:#175041,stroke:#1c5443,color:#f3ebd9
+  classDef brass fill:#c9a24b,stroke:#9f7c2c,color:#15201b,font-weight:bold
+
+  subgraph SRC["Source · npm workspaces"]
+    direction TB
+    ENG["packages/engine<br/>rules · state machine<br/>bots · the Broker"]:::felt
+    PRO["packages/protocol<br/>Zod schemas"]:::felt
+    WRK["apps/worker<br/>Worker · RoomServer (partyserver)<br/>AI providers · D1 (Drizzle)"]:::felt
+    WEB["apps/web<br/>Vite · React · TanStack Router"]:::felt
+  end
+
+  subgraph CHECK["npm run check"]
+    direction LR
+    TC["typecheck<br/>all workspaces"]:::paper
+    UT["unit · vitest<br/>889 engine assertions (all 124 vectors,<br/>no dominant strategy) · protocol · AI providers"]:::brass
+    BUILD["vite build<br/>→ apps/web/dist"]:::paper
+    INT["integration · vitest<br/>D1 migrate + wrangler dev --env local<br/>2 independent WebSocket clients<br/>full 8-haul game · timers · reconnect<br/>spectators · validation · stats"]:::brass
+    E2E["e2e · Playwright<br/>2 isolated browsers via the UI<br/>8 hauls · tiebreak · rematch · record"]:::brass
+    TC --> UT --> BUILD --> INT --> E2E
+  end
+
+  subgraph SHIP["Ship"]
+    direction TB
+    CI["GitHub Actions<br/>same pipeline on every push"]:::paper
+    DEPLOY["npm run deploy<br/>D1 migrate --remote · wrangler deploy:<br/>Worker + Durable Objects + D1 + static assets<br/>secret: ANTHROPIC_API_KEY"]:::paper
+    LIVE["one Worker URL<br/>share /r/CODE links"]:::brass
+    CI --> DEPLOY --> LIVE
+  end
+
+  ENG --> TC
+  PRO --> TC
+  WRK --> TC
+  WEB --> TC
+  E2E --> CI

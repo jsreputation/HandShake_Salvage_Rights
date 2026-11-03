@@ -1,0 +1,27 @@
+{
+  "name": "@salvage-rights/worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler d1 migrations apply salvage-rights --local && wrangler dev --port 8787",
+    "dev:local": "wrangler d1 migrations apply salvage-rights --local --env local && wrangler dev --env local --port 8787",
+    "deploy": "wrangler d1 migrations apply salvage-rights --remote && wrangler deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply salvage-rights --local --env local",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "@salvage-rights/engine": "*",
+    "@salvage-rights/protocol": "*",
+    "drizzle-orm": "^0.45.4",
+    "partyserver": "^0.5.10"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251001.0",
+    "drizzle-kit": "^0.31.11",
+    "wrangler": "^4.40.0"
+  }
+}
